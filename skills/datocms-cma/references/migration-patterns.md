@@ -167,9 +167,8 @@ async function migrateUploads(
       const upload = await client.uploads.createFromUrl({
         url,
         skipCreationIfAlreadyExists: true,
-        // Field-first shape — migrated & all projects created after 2026-06-11.
-        // Legacy (unmigrated) projects use { [locale]: { alt, title, ... } } instead.
-        // Sending the wrong shape fails on write — see references/uploads.md § Metadata.
+        // CMA client 6.0.0+ simple methods accept this shape in every environment.
+        // Legacy wire metadata is converted automatically; see references/uploads.md.
         default_field_metadata: { alt: { en: alt } },
       });
       uploadMap.set(url, upload.id);

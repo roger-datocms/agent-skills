@@ -42,23 +42,49 @@ Step 2 must succeed before step 3, and step 3 references path (`id` from step 1,
 
 ## Metadata: defaults vs per-use overrides
 
-`upload.default_field_metadata` = fallback metadata, applied when a record's File/Gallery field references the upload **without** overrides:
+With `@datocms/cma-client` **6.0.0+** simple methods, `upload.default_field_metadata` is a **field-keyed** object: `alt` / `title` / `custom_data` keyed by locale, `focal_point` (images) and `poster_time` (videos) single values per asset. The client normalizes both API wire shapes described below.
+
+```ts
+{
+  alt: { en: "Hero shot", it: "Copertina" },
+  title: { en: null, it: null },
+  custom_data: { en: {}, it: {} },
+  focal_point: { x: 0.5, y: 0.3 },  // one per asset, not per locale
+  poster_time: null,                // one per asset, not per locale
+}
+```
+
+Writes are a patch: send any subset of the five keys, missing ones keep stored value. (Record-side override below behaves the opposite way — read both.)
+
+It's fallback that fills in when record's File/Gallery field references upload **without** overrides:
 
 ```ts
 hero_image: { upload_id: upload.id }                           // uses upload's defaults
 hero_image: { upload_id: upload.id, alt: "Custom for here" }  // override per usage
 ```
 
-Focal points are already non-localized in every project: each asset has one value shared across locales. The per-environment `non_localized_focal_points` flag only controls how the CMA represents `default_field_metadata` (Configuration → Available updates; one-way, can't be turned back off; enabled by default for projects created after the 2026-06-11 rollout, existing environments opt in, forks inherit the source environment's value). Picking the wrong shape is the upload gotcha that bites:
+**Record-side overrides keep their own shape.** A non-localized File field takes `{ upload_id, alt, title, custom_data, focal_point }`; a localized File field wraps that value in `{ [locale]: ... }`. Gallery fields take arrays of file values, per locale when localized. The `non_localized_focal_points` flag does not change these shapes. See `references/localization.md`.
 
-- **Unmigrated (legacy default):** locale-first — `{ [locale]: { alt, title, custom_data, focal_point, poster_time } }`. `alt` / `title` / `custom_data` are localized; the single `focal_point` / `poster_time` value is repeated in each locale entry for backward compatibility.
-- **Migrated (and all new projects):** field-first — `{ alt: { [locale]: … }, title: { [locale]: … }, custom_data: { [locale]: … }, focal_point: { x, y } | null, poster_time: number | null }`. `focal_point`/`poster_time` are **non-localized** (one value shared across locales).
+Record-side metadata is normalized separately from upload defaults. Omitted override properties become `null`/`{}` in the stored field value; upload defaults are not copied into it. Read and preserve existing overrides when updating a File/Gallery field. Use `{ upload_id }` when no per-record override is needed.
 
-Sending the wrong shape fails on write: on a migrated project the legacy locale-first payload is rejected (`INVALID_FIELD`, `details.code: INVALID_FORMAT`) with message `"<locale>" is not a permitted key` (top-level key must be a field name). The CMA still returns + accepts the legacy shape on unmigrated projects by default; after migration only field-first is accepted.
+### Two wire shapes — simple methods normalize, raw don't
 
-**Detect which shape an environment uses:** `const site = await client.site.find()` and read `site.non_localized_focal_points` (`false` → legacy, `true` → field-first). `@datocms/cma-client` needs **5.5.0+** for the new shape; older clients' generated types (and `cma:docs`, which reflects the installed version) only model the legacy locale-first shape.
+API serves `default_field_metadata` in one of two shapes, decided per environment by the [non-localized focal points](https://www.datocms.com/product-updates/non-localized-focal-points) opt-in:
 
-**Record-side override is a separate, locale-first shape** (`{ [locale]: { upload_id, alt, title, custom_data, focal_point } }`, see `references/localization.md`) — the `non_localized_focal_points` flag does not change it. Overrides are shallow per field, not merged: provide any of `alt | title | custom_data | focal_point` → provide all four (others → `null`/`{}`, not upload defaults). No overrides → omit; `{ upload_id }` is cleaner.
+| Opt-in | Wire shape |
+| - | - |
+| Active | field-keyed: `{ alt: { [locale]: ... }, title: { [locale]: ... }, custom_data: { [locale]: ... }, focal_point, poster_time }` |
+| Inactive (legacy) | locale-keyed: `{ [locale]: { alt, title, custom_data, focal_point, poster_time } }` |
+
+Focal points and poster times are already non-localized in every project. Legacy responses repeat their single stored value in each locale entry for backward compatibility. The flag changes the wire representation, not whether these values are localized.
+
+The opt-in is per environment and one-way. New projects enable it by default; existing environments retain the legacy shape until activated, and forks inherit the source environment's setting. Sending the other wire shape fails with `422 INVALID_FORMAT`.
+
+From `@datocms/cma-client` **6.0.0** simple methods (`create`, `update`, `find`, `list`, `listPagedIterator`, plus the `From*` helpers built on them) convert both directions, so you always read and write field-keyed regardless of environment. Reads need no lookup — shapes are told apart structurally. Writes ask environment once per client, memoized 20 min and shared by concurrent callers, so bulk write costs one extra request total, not one per upload. Client that never writes metadata never asks.
+
+Raw methods (`rawCreate`, `rawFind`, `rawList`, ...) hand you wire payload untouched — that's the point of raw layer. Type those with exported `UploadLocaleKeyedDefaultFieldMetadata` / `UploadLocaleKeyedDefaultFieldMetadataInRequest`.
+
+**Raw methods and clients before 6.0.0:** detect the wire shape with `const site = await client.site.find()` and read `site.meta.non_localized_focal_points` (`false` means locale-keyed; `true` means field-keyed). Match that environment's shape, or upgrade to 6.0.0+ and use simple methods for automatic conversion. `cma:docs` reflects the installed client's generated types; it does not detect the environment's wire shape.
 
 `smart_tags` (auto-populated by Dato's image analysis) appear on read-back asynchronously after upload — not present immediately on response from `create()`. Don't filter on `smart_tags` until you've waited for indexing.
 
