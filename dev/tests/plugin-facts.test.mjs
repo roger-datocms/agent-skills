@@ -120,3 +120,17 @@ test('TypeScript 6 accepts the plugin stylesheet only with Vite client types', f
   assert.match(withoutReference[0].message, /datocms-react-ui\/styles\.css/);
   assert.deepEqual(diagnostics(true), []);
 });
+
+test('browser CMA guidance names upgrade-dependent defaults the CMA client exposes', fixture, () => {
+  // datocms/api: ItemsController#slice defaults index to :published unless improved_items_listing;
+  // ItemType::Upsert falls back to environment.draft_mode_default when draft_mode_active is missing.
+  const raw = pkg('@datocms/cma-client/dist/types/generated/RawApiTypes.d.ts');
+  const body = (name) => raw.match(new RegExp(`export type ${name}(?:<[^\\n]*>)? = \\{([\\s\\S]*?)\\n\\};`))[1];
+  assert.match(body('ItemInstancesHrefSchema'), /\n\s+version\?: /);
+  assert.match(body('ItemTypeCreateSchema'), /\n\s+draft_mode_active\?: boolean;/);
+  for (const flag of ['improved_items_listing', 'draft_mode_default']) assert.match(body('SiteMeta'), new RegExp(`\\n\\s+${flag}: boolean;`));
+  const browserCma = ref('sdk-context-and-cma.md').match(/## Browser CMA\n([\s\S]*?)\n## /)[1];
+  assert.match(browserCma, /Pass `version`[^\n]*every record list/);
+  assert.match(browserCma, /Pass `draft_mode_active` when the plugin creates a model/);
+  assert.match(browserCma, /`ctx\.site\.meta`[^\n]*`improved_items_listing`, `draft_mode_default`/);
+});
