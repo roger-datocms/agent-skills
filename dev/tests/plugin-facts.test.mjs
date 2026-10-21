@@ -120,29 +120,3 @@ test('TypeScript 6 accepts the plugin stylesheet only with Vite client types', f
   assert.match(withoutReference[0].message, /datocms-react-ui\/styles\.css/);
   assert.deepEqual(diagnostics(true), []);
 });
-
-test('browser CMA guidance names upgrade-dependent defaults the CMA client exposes', fixture, () => {
-  // datocms/api: ItemsController#slice defaults index to :published unless improved_items_listing;
-  // ItemType::Upsert falls back to environment.draft_mode_default when draft_mode_active is missing.
-  const raw = pkg('@datocms/cma-client/dist/types/generated/RawApiTypes.d.ts');
-  const body = (name) => raw.match(new RegExp(`export type ${name}(?:<[^\\n]*>)? = \\{([\\s\\S]*?)\\n\\};`))[1];
-  assert.match(body('ItemInstancesHrefSchema'), /\n\s+version\?: /);
-  assert.match(body('ItemTypeCreateSchema'), /\n\s+draft_mode_active\?: boolean;/);
-  for (const flag of ['improved_items_listing', 'draft_mode_default']) assert.match(body('SiteMeta'), new RegExp(`\\n\\s+${flag}: boolean;`));
-  const browserCma = ref('sdk-context-and-cma.md').match(/## Browser CMA\n([\s\S]*?)\n## /)[1];
-  assert.match(browserCma, /Pass `version`[^\n]*every record list/);
-  assert.match(browserCma, /Pass `draft_mode_active` when the plugin creates a model/);
-  assert.match(browserCma, /\[opt-in project updates\]\(project-updates\.md\)/);
-});
-
-test('project-updates covers every opt-in update flag in the SDK site meta', fixture, () => {
-  // SiteMeta also carries non-update fields; every other boolean is an "Available updates" opt-in.
-  const siteMeta = pkg('@datocms/cma-client/dist/types/generated/RawApiTypes.d.ts').match(/export type SiteMeta = \{([\s\S]*?)\n\};/)[1];
-  const notUpdates = ['created_at', 'custom_upload_storage_settings', 'allow_custom_theme'];
-  const flags = [...siteMeta.matchAll(/^ {4}(\w+)\??: /gm)].map((m) => m[1]).filter((name) => !notUpdates.includes(name)).sort();
-  const text = ref('project-updates.md');
-  const tableFlags = [...text.matchAll(/^\| `(\w+)` \|/gm)].map((m) => m[1]);
-  const cdaFlags = [...text.match(/^These only matter when the plugin queries the CDA[^\n]*/m)[0].matchAll(/`(improved_\w+)`/g)].map((m) => m[1]);
-  const documented = [...tableFlags, ...cdaFlags].sort();
-  assert.deepEqual(documented, flags);
-});

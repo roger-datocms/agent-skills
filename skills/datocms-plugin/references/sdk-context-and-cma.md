@@ -91,8 +91,6 @@ When direct browser CMA is required:
 2. Guard `ctx.currentUserAccessToken` at runtime.
 3. Pass `environment: ctx.environment` so calls target the current sandbox.
 4. Pass `baseUrl: ctx.cmaBaseUrl` for internal/staging host support.
-5. Pass `version` (`'current'` or `'published'`) on every record list (`items.list`, `items.listPagedIterator`, raw `GET /items`). Without it, projects that haven't activated the "Improved items listing" update return only published records, while newer projects return drafts too.
-6. Pass `draft_mode_active` when the plugin creates a model. Without it, the model inherits the environment's draft-mode default, which differs between older and newer projects.
 
 ```ts
 import { buildClient } from '@datocms/cma-client-browser';
@@ -108,8 +106,6 @@ const client = buildClient({
   baseUrl: ctx.cmaBaseUrl,
 });
 ```
-
-A plugin runs on projects with and without each opt-in update, so explicit parameters keep one tested code path. Booleans, datetimes, publish validation, upload metadata and CDA reads also differ between the two states: see [opt-in project updates](project-updates.md).
 
 Do not add `currentUserAccessToken` for unused future flows. Keep the package permission, runtime guard, and visible disabled/error state aligned.
 
