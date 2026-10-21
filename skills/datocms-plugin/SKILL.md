@@ -52,6 +52,7 @@ Plugin code: patch in place; scaffold only when requested or absent. A project's
 | Follow-up maintenance shortcuts | `references/rapid-patterns.md` |
 | Exact `connect()`, hook pairs, render helper, Canvas, frame sizing | `references/sdk-connect-and-frames.md` |
 | Base `ctx`, entity repos, form values, browser CMA, endpoints, async errors | `references/sdk-context-and-cma.md` |
+| Code that must work with and without opt-in project updates (`ctx.site.meta` flags) | `references/project-updates.md` |
 | Target code has no clear precedent | `references/current-plugin-patterns.md` |
 | Plugin permission changes | `references/permissions.md` |
 | Localized values, field paths, Structured Text Slate form values | `references/form-values.md` |

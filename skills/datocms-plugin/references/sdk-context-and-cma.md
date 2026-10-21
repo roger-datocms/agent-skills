@@ -109,7 +109,7 @@ const client = buildClient({
 });
 ```
 
-A plugin runs on projects with and without each opt-in update, so explicit parameters keep one tested code path. `ctx.site.meta` exposes the update flags (`improved_items_listing`, `draft_mode_default`, …); read them only where no explicit parameter exists.
+A plugin runs on projects with and without each opt-in update, so explicit parameters keep one tested code path. Booleans, datetimes, publish validation, upload metadata and CDA reads also differ between the two states: see [opt-in project updates](project-updates.md).
 
 Do not add `currentUserAccessToken` for unused future flows. Keep the package permission, runtime guard, and visible disabled/error state aligned.
 
