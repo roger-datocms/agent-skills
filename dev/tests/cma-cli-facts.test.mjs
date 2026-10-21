@@ -196,7 +196,7 @@ test('project-updates covers every opt-in update flag in the CMA client site met
   const siteMeta = installed('@datocms/cma-client/dist/types/generated/RawApiTypes.d.ts').match(/export type SiteMeta = \{([\s\S]*?)\n\};/)[1];
   const notUpdates = ['created_at', 'custom_upload_storage_settings', 'allow_custom_theme'];
   const flags = [...siteMeta.matchAll(/^ {4}(\w+)\??: /gm)].map((m) => m[1]).filter((name) => !notUpdates.includes(name)).sort();
-  const documented = [...skill('datocms-cma/references/project-updates.md').matchAll(/^\| `(\w+)` \|/gm)].map((m) => m[1]).sort();
+  const documented = [...skill('datocms-cma/references/project-updates.md').matchAll(/^\| \[`(\w+)`\]\(https:\/\/www\.datocms\.com\/product-updates\/[\w-]+\) \|/gm)].map((m) => m[1]).sort();
   assert.deepEqual(documented, flags);
 });
 
